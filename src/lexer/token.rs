@@ -43,4 +43,24 @@ impl Token {
       span: TextSpan::new(pos, len)
     }
   }
+
+  pub fn get_unary_op_precedence(kind: TokenKind) -> i32 {
+    match kind {
+      TokenKind::Plus |
+      TokenKind::Minus => 3,
+      _ => 0
+    }
+  }
+
+  pub fn get_binary_op_precedence(kind: TokenKind) -> i32 {
+    match kind {
+      TokenKind::Star |
+      TokenKind::Slash => 2,
+
+      TokenKind::Plus |
+      TokenKind::Minus => 1,
+
+      _ => 0
+    }
+  }
 }
