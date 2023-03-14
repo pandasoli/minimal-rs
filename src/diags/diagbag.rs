@@ -1,5 +1,10 @@
-use crate::diags::diag::Diag;
-use crate::diags::textspan::TextSpan;
+use crate::{
+  diags::{
+    diag::Diag,
+    textspan::TextSpan
+  },
+  lexer::token::TokenKind
+};
 
 
 pub struct DiagBag {
@@ -23,6 +28,11 @@ impl DiagBag {
   pub fn report_illegal_ch(&mut self, pos: usize, ch: char) {
     let span = TextSpan::new(pos, 1);
     let msg = format!("Illegal character input: '{}'", ch);
+    self.report(span, msg);
+  }
+
+  pub fn report_unexpected_token(&mut self, span: TextSpan, kind: TokenKind, expected: TokenKind) {
+    let msg = format!("Unexpected token <{:?}>, expected <{:?}>", kind, expected);
     self.report(span, msg);
   }
 }

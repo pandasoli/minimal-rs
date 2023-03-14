@@ -2,10 +2,12 @@ use std::io;
 use std::io::Write;
 
 mod lexer;
+mod parser;
 mod diags;
 
 use lexer::lexer::Lexer;
 use lexer::token::Token;
+use parser::parser::Parser;
 
 fn main() {
   println!("\x1b[1;47;30m  𝙼𝚒𝚗𝚒𝚖𝚊𝚕 - 𝙰𝚗 𝚘𝚕𝚍 𝚗𝚎𝚠 𝚙𝚛𝚘𝚐𝚛𝚊𝚖𝚖𝚒𝚗𝚐 𝚕𝚊𝚗𝚐𝚞𝚊𝚐𝚎 :𝙳  \x1b[0m\n");
@@ -26,7 +28,15 @@ fn main() {
       tokens.push(token);
     }
 
-    if lex.diags().len() > 0 {
+    let mut par = Parser::new(tokens);
+    let ast = par.parse();
+
+    let mut diags = lex.diags().clone();
+    diags.extend(par.diags());
+
+    println!("{:?}", ast);
+
+    if diags.len() > 0 {
       for diag in lex.diags() {
         println!("");
 
