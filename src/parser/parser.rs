@@ -62,15 +62,10 @@ impl Parser {
     let unary_op_prece = Token::get_unary_op_precedence(self.current().kind);
 
     let mut left = if unary_op_prece != 0 && unary_op_prece >= parent_prece {
-      let op = match self.read().kind {
-        TokenKind::Plus => UnaryOp::Positive,
-        TokenKind::Minus => UnaryOp::Negative,
-
-        _ => unimplemented!()
-      };
-
+      let op = self.read();
       let operand = self.binary_expr(unary_op_prece);
-      Node::Unary (Box::new(operand), op)
+
+      Node::new_unary(operand, op)
     }
     else {
       self.prim_expr()
@@ -82,17 +77,10 @@ impl Parser {
         break;
       }
 
-      let op = match self.read().kind {
-        TokenKind::Plus => BinaryOp::Plus,
-        TokenKind::Minus => BinaryOp::Subtract,
-        TokenKind::Star => BinaryOp::Multiply,
-        TokenKind::Slash => BinaryOp::Divide,
-
-        _ => unimplemented!()
-      };
-
+      let op = self.read();
       let right = self.binary_expr(prece);
-      left = Node::Binary (Box::new(left), op, Box::new(right));
+
+      left = Node::new_binary(left, op, right);
     }
 
     return left;
@@ -108,7 +96,7 @@ impl Parser {
         expr
       },
 
-      _ => Node::Number (self.match_(TokenKind::Number))
+      _ => Node::new_lit(self.match_(TokenKind::Number))
     }
   }
 }
@@ -123,24 +111,24 @@ mod tests {
     let suite = vec![
       (
         "123 * -(12 / -2)+6",
-        Node::Binary (
-          Box::new(Node::Binary (
-            Box::new(Node::Number(Token::new(TokenKind::Number, "123".to_owned(), 0, 3))),
-            BinaryOp::Multiply,
-            Box::new(Node::Unary (
-              Box::new(Node::Binary (
-                Box::new(Node::Number (Token::new(TokenKind::Number, "12".to_owned(), 8, 2))),
-                BinaryOp::Divide,
-                Box::new(Node::Unary (
-                  Box::new(Node::Number (Token::new(TokenKind::Number, "2".to_owned(), 14, 1))),
-                  UnaryOp::Negative
-                ))
-              )),
-              UnaryOp::Negative
-            ))
-          )),
-          BinaryOp::Plus,
-          Box::new(Node::Number(Token::new(TokenKind::Number, "6".to_owned(), 17, 1)))
+        Node::new_binary(
+          Node::new_binary(
+            Node::new_lit(Token::new(TokenKind::Number, "123".to_owned(), 0, 3)),
+            Token::new(TokenKind::Star, "*".to_owned(), 3, 1),
+            Node::new_unary(
+              Node::new_binary(
+                Node::new_lit(Token::new(TokenKind::Number, "12".to_owned(), 8, 2)),
+                Token::new(TokenKind::Slash, "/".to_owned(), 10, 1),
+                Node::new_unary(
+                  Node::new_lit(Token::new(TokenKind::Number, "2".to_owned(), 14, 1)),
+                  Token::new(TokenKind::Minus, "-".to_owned(), 12, 1)
+                )
+              ),
+              Token::new(TokenKind::Minus, "-".to_owned(), 5, 1)
+            )
+          ),
+          Token::new(TokenKind::Plus, "+".to_owned(), 15, 1),
+          Node::new_lit(Token::new(TokenKind::Number, "6".to_owned(), 17, 1))
         ),
         0
       )
@@ -158,36 +146,38 @@ mod tests {
   }
 
   fn test_node(node: Node, expected: Node) {
-    match node {
-      Node::Number(token) => {
-        let expected = match expected {
-          Node::Number(token) => token,
-          _ => unimplemented!()
-        };
+    match node.kind {
+      NodeKind::Literal => {
+        let val = node.val.unwrap();
+        let exp_val = expected.val.unwrap();
 
-        assert_eq!(token.kind, expected.kind);
-        assert_eq!(token.literal, expected.literal);
-        assert_eq!(token.pos, expected.pos);
-        assert_eq!(token.len, expected.len);
+        assert_eq!(val.kind, exp_val.kind);
+        assert_eq!(val.literal, exp_val.literal);
+        assert_eq!(node.pos, expected.pos);
+        assert_eq!(node.len, expected.len);
       },
-      Node::Unary(node, op) => {
-        let (exp_node, exp_op) = match expected {
-          Node::Unary(node, op) => (node, op),
-          _ => unimplemented!()
-        };
+      NodeKind::Unary => {
+        let expr = node.left.unwrap();
+        let op = node.op.unwrap();
 
-        test_node(*node, *exp_node);
-        assert_eq!(op, exp_op);
+        let exp_expr = expected.left.unwrap();
+        let exp_op = expected.op.unwrap();
+
+        test_node(*expr, *exp_expr);
+        assert_eq!(op.kind, exp_op.kind);
       },
-      Node::Binary(left, op, right) => {
-        let (exp_left, exp_op, exp_right) = match expected {
-          Node::Binary(node, op, right) => (node, op, right),
-          _ => unimplemented!()
-        };
+      NodeKind::Binary => {
+        let left = node.left.unwrap();
+        let op = node.op.unwrap();
+        let right = node.right.unwrap();
+
+        let exp_left = expected.left.unwrap();
+        let exp_op = expected.op.unwrap();
+        let exp_right = expected.right.unwrap();
 
         test_node(*left, *exp_left);
         test_node(*right, *exp_right);
-        assert_eq!(op, exp_op);
+        assert_eq!(op.kind, exp_op.kind);
       }
     }
   }
